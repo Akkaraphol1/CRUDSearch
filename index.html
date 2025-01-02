@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Datatable</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; }
+        table { width: 80%; border-collapse: collapse; margin: 20px 0; }
+        table, th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        th { background-color: #f4f4f4; }
+        button { padding: 5px 10px; margin: 5px; }
+        .form { margin: 20px; display: flex; flex-direction: column; width: 300px; }
+        .form input { padding: 10px; margin-bottom: 10px; }
+
+         .add-user-btn {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-user-btn:hover {
+            background-color: #218838;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 350px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+        .modal-content label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .modal-content button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .modal-content button:hover {
+            background-color: #0056b3;
+        }
+
+        .close-btn {
+            background-color: #dc3545;
+        }
+
+        .close-btn:hover {
+            background-color: #c82333;
+        }
+
+  .search-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .search-container input[type="text"] {
+            width: 200px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+
+        .search-container button {
+            padding: 8px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .search-container button:hover {
+            background-color: #0056b3;
+        }
+
+        .search-container i {
+            margin-right: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+       
+
+    </style>
+</head>
+<body>
+    <h2>CRUD Web App with Google Sheets</h2>
+
+     <div class="search-container">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="พิมพ์คำค้นหา">
+        <button onclick="filterTable()">Search</button>&nbsp; <button class="add-user-btn" onclick="showModal()">Add / Edit</button>
+    </div> 
+
+    <!-- Modal -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <h2>Add New User / Edit Data User</h2>
+            <input type="hidden" id="id">
+            <label for="name">Name</label>
+            <input type="text" id="name" placeholder="Enter name">
+            <label for="age">Age</label>
+            <input type="number" id="age" placeholder="Enter age">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Enter email">
+            <button onclick="addUser()">Save</button>&nbsp;
+            <button class="close-btn" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+<!--
+    <div class="form">
+        <input type="hidden" id="id">
+        <input type="text" id="name" placeholder="Name">
+        <input type="text" id="age" placeholder="Age">
+        <input type="text" id="email" placeholder="Email">
+        <button onclick="addOrUpdateRecord()">Add/Update</button>
+    </div> -->
+
+
+
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Email</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", loadTableData);
+
+        function loadTableData() {
+            google.script.run.withSuccessHandler(displayData).getData();
+        }
+
+        function displayData(data) {
+            const tableBody = document.querySelector("#dataTable tbody");
+            tableBody.innerHTML = "";
+            data.slice(1).forEach(row => {
+                let newRow = tableBody.insertRow();
+                row.forEach(cell => {
+                    let newCell = newRow.insertCell();
+                    newCell.textContent = cell;
+                });
+                // Add action buttons
+                let actionCell = newRow.insertCell();
+                actionCell.innerHTML = `
+                    <button onclick="editRecord(${row[0]})">Edit</button>
+                    <button onclick="deleteRecord(${row[0]})">Delete</button>
+                `;
+            });
+        }
+
+        function addOrUpdateRecord() {
+            const id = document.getElementById("id").value;
+            const name = document.getElementById("name").value;
+            const age = document.getElementById("age").value;
+            const email = document.getElementById("email").value;
+
+            if (id) {
+                google.script.run.withSuccessHandler(loadTableData).updateData(id, name, age, email);
+            } else {
+                google.script.run.withSuccessHandler(loadTableData).addData(name, age, email);
+            }
+            clearForm();
+        }
+
+        function editRecord(id) {
+            const row = document.querySelectorAll("#dataTable tbody tr");
+            row.forEach(tr => {
+                if (tr.cells[0].textContent == id) {
+                    document.getElementById("id").value = id;
+                    document.getElementById("name").value = tr.cells[1].textContent;
+                    document.getElementById("age").value = tr.cells[2].textContent;
+                    document.getElementById("email").value = tr.cells[3].textContent;
+                }
+            });
+        }
+
+        function deleteRecord(id) {
+            google.script.run.withSuccessHandler(loadTableData).deleteData(id);
+        }
+
+        function clearForm() {
+            document.getElementById("id").value = "";
+            document.getElementById("name").value = "";
+            document.getElementById("age").value = "";
+            document.getElementById("email").value = "";
+        }
+
+ function filterTable() {
+            const input = document.getElementById("searchInput");
+            const filter = input.value.toLowerCase();
+            const table = document.getElementById("dataTable");
+            const rows = table.getElementsByTagName("tr");
+
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName("td");
+                let found = false;
+                for (let j = 0; j < cells.length; j++) {
+                    if (cells[j]) {
+                        const text = cells[j].textContent || cells[j].innerText;
+                        if (text.toLowerCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                rows[i].style.display = found ? "" : "none";
+            }
+        }
+
+
+        // New Table
+        let userId = 2; // Start ID for new users
+
+        // Show the modal
+        function showModal() {
+            document.getElementById("addUserModal").style.display = "flex";
+        }
+
+        // Close the modal
+        function closeModal() {
+            document.getElementById("addUserModal").style.display = "none";
+            clearModalFields();
+        }
+
+        // Clear input fields in the modal
+        function clearModalFields() {
+           document.getElementById("id").value = "";
+            document.getElementById("name").value = "";
+            document.getElementById("age").value = "";
+            document.getElementById("email").value = "";
+        }
+
+        // Add a new user to the table
+        function addUser() {
+           const id = document.getElementById("id").value;
+            const name = document.getElementById("name").value;
+            const age = document.getElementById("age").value;
+            const email = document.getElementById("email").value;
+
+            if (id) {
+                google.script.run.withSuccessHandler(loadTableData).updateData(id, name, age, email);
+            } else {
+                google.script.run.withSuccessHandler(loadTableData).addData(name, age, email);
+            }
+            clearForm();
+        }
+
+    </script>
+</body>
+</html>
